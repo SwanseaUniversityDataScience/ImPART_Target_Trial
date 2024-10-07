@@ -3,7 +3,12 @@ IMproving Prophylactic Antibiotic use for Recurrent urinary Tract infection (IMP
 
 ## 📝 Project Description
 
-### Authors:
+A retrospective cohort study designed using the Comparative Effectiveness Research Based on Observational Data to Emulate a Target Trial (CERBOT) tool, to emulate a pragmatic clinical trial assessing the effect of prophylactic antibiotic initiation versus usual care on subsequent antibiotic resistance.
+
+The objective of this research is to estimate the effect of prophylactic antibiotic use on antibiotic resistance in women with recurrent urinary tract infections (rUTIs). 
+
+## Authors
+
 Dr Leigh Sanyaolu<sup>1</sup> General Practitioner and Health and Care Research Wales, NIHR Doctoral Fellow,  
 Dr Haroon Ahmed<sup>1</sup> General Practitioner and Clinical Reader in Epidemiology,  
 Ms Victoria Best<sup>2</sup> - Research Officer and Data Scientist,  
@@ -20,10 +25,6 @@ Dr Rebecca Cannings-John<sup>5</sup> - Principal Research Fellow in Statistics.
 <sup>3</sup> Division of Population Medicine, Cardiff University <br>
 <sup>4</sup> Nuffield Department of Primary Care Health Sciences, Oxford University <br>
 <sup>5</sup> Centre for Trials Research, Cardiff University <br>
-
-A retrospective cohort study designed using the Comparative Effectiveness Research Based on Observational Data to Emulate a Target Trial (CERBOT) tool, to emulate a pragmatic clinical trial assessing the effect of prophylactic antibiotic initiation versus usual care on subsequent antibiotic resistance.
-
-The objective of this research is to estimate the effect of prophylactic antibiotic use on antibiotic resistance in women with recurrent urinary tract infections (rUTIs). 
 
 #### Corresponding Author
 
