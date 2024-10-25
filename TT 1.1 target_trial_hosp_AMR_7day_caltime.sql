@@ -1,29 +1,46 @@
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
---This script builds upon the cohorts developed for Recurrent urinary
---tract infections and prophylactic antibiotic use in women: a cross-
---sectional study in primary care, for the years 2015 to 2020.
---further information and code is available in github respository
---https://github.com/SwanseaUniversityDataScience/ImPART/tree/main/Additional%20Documents
+--***************MUST RUN SCRIPTS 1.1 Cohort1_2015_to_2020 ****************
+--**********AND 3.2_Cohort3_2015_to_2020.sql PRIOR TO THIS SCRIPT**********
 --initial tables:
---		SAILW1169V.V15VB_COHORT1
+--		sailw1169v.V15VB_COHORT1
 --		SAILW1169V.V15VB_COHORT3_ALL_RPT_ABX
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 --cohort comprised of women with rUTIs between 2015 and 2020.
 --general inclusion criteria matches impart cohort 1 with additional exclusion 
---criteria cannot have used pAbx within the 12 months prior to rUTI.
---and must be Welsh resident at baseline (rUTI diagnosis date)
---to exclude hospital acquired infections, the episode must start within 2 days
+--criteria cannot have used prophylactic antibiotics (pAbx) within the 12 months 
+--prior to rUTI and must be Welsh resident at baseline (rUTI diagnosis date).
+--To exclude hospital acquired infections, the episode must start within 2 days
 --of an admission and must not occur within 3 days of a prior discharge
 
+/*cohort 1 inclusion criteria
+ * 
+ * All female patients in WDSD, WLGP and PEDW
+ * Excluding:
+ * Records where ALF status code is not 1, 4 or 39
+ * Individuals who died prior to 2010-01-01
+ * Individuals not registered with a SAIL registered GP practice during period 2010-01-01 to 2020-12-31
+ * Individuals without UTIs
+ * Individuals without recurrent UTIs
+ * Individuals without at least 12 months of data prior to recurrent UTI
+ * Indivduals with a pregnancy within 40 weeks of baseline
+ * Individuals with a catheter code at any date prior to baseline
+ * 
+ * Where WOB did not match in WDSD and WLGP the date was taken from WDSD
+ */
+
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+--Identify patients with pAbx between 2015 and 2020
+
+-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 
---code to look at patients with pAbx between 2015 and 2020
---exclude those with pabx in 12 months prior to rUTI
---add if left cohort during study period and whether lost to follow up or died
---where GP registration ended the day before date of death then classified as died
+--Exclude those with pabx in 12 months prior to rUTI
+--Add if left cohort during study period and whether lost to follow up or died
+--Where GP registration ended the day before date of death then classified as died
 
 CALL fnc.drop_if_exists('sailw1169v.VB_7day_TARGET_TRIAL_PRE');
 
@@ -194,6 +211,8 @@ WHERE CTE.ALF_PE NOT IN  --remove those with prior pabx in 12 months from cohort
 (SELECT CTE2.ALF_PE FROM CTE2);
 
 ---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+
 --add pabx first prescription and pabx end dates
 
 CALL fnc.drop_if_exists('sailw1169v.VB_7day_tt_pabx_in_12_mnth');
@@ -253,7 +272,8 @@ ON COMMIT PRESERVE ROWS;
 COMMIT;
 
 
---Insert where there is more than one dose due to multi Abx types
+--Insert where there is more than one dose due to multiple antibiotic types
+
 INSERT INTO SESSION.vb_tt_dose_consistency
 WITH cte as	
 (SELECT DISTINCT amr.alf_pe, 
@@ -322,8 +342,8 @@ SET amr.dose = (SELECT abx.dose
 			
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_PRE AS amr
 SET amr.dose_consistency = (SELECT abx.dose_consistency
-							FROM SESSION.vb_tt_dose_consistency AS abx
-							WHERE abx.alf_pe = amr.alf_pe);
+				FROM SESSION.vb_tt_dose_consistency AS abx
+				WHERE abx.alf_pe = amr.alf_pe);
 
 -------------------------------------------------------------------------------------------
 --add next pabx start after first sequence has ended
@@ -349,13 +369,13 @@ SET NEXT_PABX_STR = pabx.next_pabx_str;
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_PRE
 SET cohort_end_reason = CASE WHEN (next_pabx_str < DOD 
-									OR (next_pabx_str IS NOT NULL 
-										AND dod IS NULL))
-							AND next_pabx_str < GP_END_DATE
-							AND next_pabx_str < '2020-12-31'
-							AND next_pabx_str < diag_date + 12 months
-						THEN 'NEW PABX'
-						ELSE COHORT_END_REASON
+				OR (next_pabx_str IS NOT NULL 
+				AND dod IS NULL))
+				AND next_pabx_str < GP_END_DATE
+				AND next_pabx_str < '2020-12-31'
+				AND next_pabx_str < diag_date + 12 months
+			THEN 'NEW PABX'
+			ELSE COHORT_END_REASON
 					END;
 
 ---------------------------------------------------------------------
@@ -439,22 +459,22 @@ ALTER table sailw1169v.VB_7day_TARGET_TRIAL_PRE
 ADD COLUMN AMR_BASELINE integer;
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_PRE
-SET AMR_BASELINE = 1
-WHERE alf_pe IN 
-(SELECT tt.ALF_PE
-FROM sailw1169v.VB_7day_TARGET_TRIAL_PRE AS tt
-INNER JOIN SAILW1169V.COHORT_WRRS_RESULTS_AGREED AS wrrs
-ON tt.ALF_PE = wrrs.ALF_PE
-WHERE (TRIMETHOPRIM = 'Resistant'
-OR NITROFURANTOIN = 'Resistant'
-OR CEPHALEXIN = 'Resistant'
-OR COAMOXICLAV = 'Resistant'
-OR AMOXICILLIN = 'Resistant'
-OR PIVMECILLINAM = 'Resistant'
-OR FOSFOMYCIN = 'Resistant'
-OR CIPROFLOXACIN = 'Resistant'
-OR AMOXICILLIN_CLAVULANATE = 'Resistant')
-AND wrrs.SPCM_COLLECTED_DT BETWEEN tt.DIAG_DATE - 365 days AND tt.DIAG_DATE);
+	SET AMR_BASELINE = 1
+		WHERE alf_pe IN 
+	(SELECT tt.ALF_PE
+		FROM sailw1169v.VB_7day_TARGET_TRIAL_PRE AS tt
+		INNER JOIN SAILW1169V.COHORT_WRRS_RESULTS_AGREED AS wrrs
+		ON tt.ALF_PE = wrrs.ALF_PE
+			WHERE (TRIMETHOPRIM = 'Resistant'
+			OR NITROFURANTOIN = 'Resistant'
+			OR CEPHALEXIN = 'Resistant'
+			OR COAMOXICLAV = 'Resistant'
+			OR AMOXICILLIN = 'Resistant'
+			OR PIVMECILLINAM = 'Resistant'
+			OR FOSFOMYCIN = 'Resistant'
+			OR CIPROFLOXACIN = 'Resistant'
+			OR AMOXICILLIN_CLAVULANATE = 'Resistant')
+			AND wrrs.SPCM_COLLECTED_DT BETWEEN tt.DIAG_DATE - 365 days AND tt.DIAG_DATE);
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_PRE
 SET AMR_BASELINE = CASE WHEN AMR_BASELINE IS NULL THEN 0
@@ -468,11 +488,11 @@ CALL fnc.drop_if_exists('session.VB_TT_MIN_DT');
 DECLARE GLOBAL TEMPORARY TABLE session.VB_TT_MIN_DT
 AS
 (SELECT ALF_PE,
-gp_end_date,
-dod,
-next_pabx_str,
-dod AS study_end_dt,
-dod AS followup_12mths
+	gp_end_date,
+	dod,
+	next_pabx_str,
+	dod AS study_end_dt,
+	dod AS followup_12mths
 FROM sailw1169v.VB_7day_TARGET_TRIAL_PRE)
 DEFINITION ONLY
 ON COMMIT PRESERVE rows;
@@ -711,9 +731,6 @@ SET diag_12months = CASE WHEN  cohort_end_reason <> 'DG +12mths'
 					THEN 1
 				ELSE 0
 			END;
-		
-SELECT * FROM sailw1169v.VB_7day_TARGET_TRIAL_PRE2
-ORDER BY alf_pe, cal_dt;
 
 -----------------------------------------------------------------------------
 --gp UTIs in prev 12 months
@@ -786,29 +803,29 @@ Commit;
 INSERT INTO SESSION.VB_PEDW_ABX_RES
 	SELECT * FROM SAIL1169V.PEDW_DIAG_20210704 AS diag
 		WHERE diag.DIAG_CD_1234 IN ('U820',
-									'U821',
-									'U822',
-									'U828',
-									'U829',
-									'U830',
-									'U830',
-									'U831',
-									'U832',
-									'U837',
-									'U838',
-									'U839',
-									'U847',
-									'U848',
-									'U849',
-									'U800',
-									'U801',
-									'U808',
-									'U810',
-									'U818',
-									'U890',
-									'U898',
-									'U899',
-									'U880');
+						'U821',
+						'U822',
+						'U828',
+						'U829',
+						'U830',
+						'U830',
+						'U831',
+						'U832',
+						'U837',
+						'U838',
+						'U839',
+						'U847',
+						'U848',
+						'U849',
+						'U800',
+						'U801',
+						'U808',
+						'U810',
+						'U818',
+						'U890',
+						'U898',
+						'U899',
+						'U880');
 	
 Commit;
 
@@ -1166,13 +1183,13 @@ SELECT DISTINCT wr.alf_pe,
 				wr.SPCM_COLLECTED_DT,
 				wr.UTI_OUTCOME,
 				CASE WHEN wr.UTI_OUTCOME IN ('Confirmed UTI',
-											'Possible UTI')
+								'Possible UTI')
 						THEN 1
 					WHEN wr.UTI_OUTCOME IN ('Heavy mixed growth',
-											'Mixed growth')
+								'Mixed growth')
 						THEN 2
 					WHEN wr.UTI_OUTCOME IN ('No microbiological evidence of UTI',
-											'Exclude NULL culture')
+								'Exclude NULL culture')
 						THEN 0
 				end
 FROM SAILW1169V.COHORT_WRRS_RESULTS_AGREED AS wr
@@ -1183,21 +1200,21 @@ SELECT alf_pe,
 		spcm_collected_dt,
 		uti_outcome,
 		CASE WHEN UTI_OUTCOME IN ('Confirmed UTI',
-									'Possible UTI')
+						'Possible UTI')
 				THEN 1
 			WHEN UTI_OUTCOME IN ('Heavy mixed growth',
-									'Mixed growth')
+						'Mixed growth')
 				THEN 2
 			WHEN UTI_OUTCOME IN ('No microbiological evidence of UTI',
-									'Exclude NULL culture')
+						'Exclude NULL culture')
 				THEN 0
 		end
 FROM SESSION.Multi_uti_outcomes;
 
 --Update AMR table with confirmed or possible UTI = 1
-					--	heavy mixed growth or mixed growth = 2
-					--	no micro evidence or exclude NULL culture = 3
-					--	no WRRS in prior 12 months = NULL
+				--	heavy mixed growth or mixed growth = 2
+				--	no micro evidence or exclude NULL culture = 3
+				--	no WRRS in prior 12 months = NULL
 					
 ALTER TABLE sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR
 ADD COLUMN MOST_RECENT_URINE integer;
@@ -1218,22 +1235,22 @@ ADD COLUMN PABX_TYPE varchar(20);
 
 MERGE INTO sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR AS coh
 USING
-(SELECT DISTINCT mindt.alf_pe, mindt.PABX_AFTER_RUTI1, pabx.ALT_ABX_TYPE
-from
-(SELECT mqo.ALF_PE, min(mqo.PABX_AFTER_RUTI1) AS PABX_AFTER_RUTI1 FROM
-(SELECT cohp.*, pabxp.PABX_STR AS PABX_AFTER_RUTI1 FROM sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR AS cohp
-LEFT JOIN SAILW1169V.VB_ALTERNATING_PABX_COH3 AS pabxp
-ON cohp.ALF_PE = pabxp.ALF_PE
-AND MONTHS_BETWEEN(pabxp.PABX_STR,cohp.ruti_diag_dt) >= 0
-AND MONTHS_BETWEEN(pabxp.PABX_STR,cohp.ruti_diag_dt) < 12
-ORDER BY ALF_PE) AS mqo
-WHERE mqo.PABX_AFTER_RUTI1 IS NOT NULL
-GROUP BY mqo.ALF_PE) AS mindt
-INNER JOIN SAILW1169V.VB_ALTERNATING_PABX_COH3 AS pabx
-ON mindt.alf_pe = pabx.alf_pe
-AND mindt.PABX_AFTER_RUTI1 = pabx.PABX_STR)
+	(SELECT DISTINCT mindt.alf_pe, mindt.PABX_AFTER_RUTI1, pabx.ALT_ABX_TYPE
+		from
+		(SELECT mqo.ALF_PE, min(mqo.PABX_AFTER_RUTI1) AS PABX_AFTER_RUTI1 FROM
+		(SELECT cohp.*, pabxp.PABX_STR AS PABX_AFTER_RUTI1 FROM sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR AS cohp
+		LEFT JOIN SAILW1169V.VB_ALTERNATING_PABX_COH3 AS pabxp
+			ON cohp.ALF_PE = pabxp.ALF_PE
+			AND MONTHS_BETWEEN(pabxp.PABX_STR,cohp.ruti_diag_dt) >= 0
+			AND MONTHS_BETWEEN(pabxp.PABX_STR,cohp.ruti_diag_dt) < 12
+		ORDER BY ALF_PE) AS mqo
+		WHERE mqo.PABX_AFTER_RUTI1 IS NOT NULL
+		GROUP BY mqo.ALF_PE) AS mindt
+			INNER JOIN SAILW1169V.VB_ALTERNATING_PABX_COH3 AS pabx
+			ON mindt.alf_pe = pabx.alf_pe
+			AND mindt.PABX_AFTER_RUTI1 = pabx.PABX_STR)
 AS pabx
-		ON coh.ALF_PE = pabx.ALF_PE
+	ON coh.ALF_PE = pabx.ALF_PE
 			WHEN MATCHED THEN
 				UPDATE
 				SET coh.PABX_TYPE = pabx.ALT_ABX_TYPE;
@@ -1264,7 +1281,7 @@ ADD COLUMN pabx_duration integer;
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR
 SET pabx_duration = CASE WHEN pabx_str IS NULL 
-							then NULL
+					then NULL
 						ELSE days_between(PABX_END, first_abx_dt)
 					END;
 				
@@ -1294,7 +1311,7 @@ ADD COLUMN pabx_duration_all integer;
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR
 SET pabx_duration_all = CASE WHEN pabx_str_all IS NULL 
-							then NULL
+						then NULL
 						ELSE days_between(PABX_END_all, PABX_ALL_FIRST_SCRIPT)
 					END;
 		
@@ -1319,7 +1336,7 @@ WHERE coh.dod BETWEEN coh.AMR_DT AND jj.min_end);
 
 UPDATE sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR AS tt
 SET death_after_outcome = CASE WHEN death_after_outcome = 1
-								THEN death_after_outcome
+							THEN death_after_outcome
 							ELSE 0 
 						END;
 					
@@ -1533,8 +1550,6 @@ FROM sailw1169v.VB_7day_TARGET_TRIAL_HOSP_AMR AS tt
 	INNER JOIN SESSION.VB_Inc_duration AS dur
 	ON tt.alf_pe = dur.alf_pe
 ORDER BY alf_pe, cal_dt;
-
-GRANT ALL ON sailw1169v.VB_7day_target_trial_hosp_adm_amr TO USER sanyaoll;
 
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------
